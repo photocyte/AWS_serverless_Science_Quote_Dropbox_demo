@@ -1,0 +1,46 @@
+context_for_questions/
+conda_env_*
+cursor-chats/
+snowflake/
+.git-old/
+.git-old*/
+
+# Lambda deployment packages
+*.zip
+
+# Lambda layer build artifacts
+lambda-layer/
+lambda-layer.zip
+lambda-function-only.zip
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# AWS SAM build artifacts
+.aws-sam/
+samconfig.toml
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
