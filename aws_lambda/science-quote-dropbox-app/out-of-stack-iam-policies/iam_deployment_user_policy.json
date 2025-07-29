@@ -1,0 +1,18 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:PassRole"
+            ],
+            "Resource": "arn:aws:iam::*:role/science-quote-dropbox-app-*"
+        }
+    ]
+} 

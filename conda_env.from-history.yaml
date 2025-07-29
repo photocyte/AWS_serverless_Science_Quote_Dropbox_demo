@@ -1,0 +1,9 @@
+name: 
+  /Users/tim/Source/git/AWS_serverless_Science_Quote_Dropbox_demo/conda_env_osx-64
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.13
+prefix: 
+  /Users/tim/Source/git/AWS_serverless_Science_Quote_Dropbox_demo/conda_env_osx-64

@@ -1,0 +1,20 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:UpdateTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:ListTables",
+                "dynamodb:UpdateTimeToLive",
+                "dynamodb:DescribeTimeToLive"
+            ],
+            "Resource": [
+                        "arn:aws:dynamodb:us-east-2:*:table/step1-rate-limit"
+            ]
+        }
+    ]
+} 

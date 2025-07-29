@@ -1,0 +1,2 @@
+boto3==1.39.15
+streaming_form_data==1.19.1 

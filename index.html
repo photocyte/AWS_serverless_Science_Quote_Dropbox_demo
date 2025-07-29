@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Quote Dropbox</title>
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+    <script>htmx.config.selfRequestsOnly = false;</script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+        }
+
+        .upload-area:hover {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+        }
+
+        .upload-area.dragover {
+            border-color: #3498db;
+            background-color: #ebf5fb;
+            transform: scale(1.02);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            background-color: #2980b9;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .upload-button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: none;
+        }
+
+        .upload-button:hover {
+            background-color: #229954;
+        }
+
+        .upload-button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .upload-button.show {
+            display: inline-block;
+        }
+
+        .progress-bar {
+            margin-top: 20px;
+            height: 4px;
+            background-color: #ecf0f1;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            white-space: pre-line;
+        }
+
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Science Quote Dropbox - MVP</h1>
+        <p class="subtitle">(A portfolio full-stack MVP web app demonstrating Tim Fallon's AWS Infrastructure as Code, AWS Lambda, generative vision LLM API (Gemini), Snowflake, and Streamlit skills, in competition for Vertex Pharmaceutical's Automated Data QC and Reporting Solutions engineer role)</p>
+        <p class="subtitle">(View parsed results at the public Streamlit dashboard: <a href="https://science-quote-dashboard.streamlit.app" target="_blank" rel="noopener noreferrer">https://science-quote-dashboard.streamlit.app</a>)</p>
+        <p class="subtitle">(Underlying code repo available via GitHub: <a href="https://github.com/photocyte/AWS_serverless_Science_Quote_Dropbox_demo/tree/main" target="_blank" rel="noopener noreferrer">here</a>.)</p>
+
+
+        <p class="subtitle">Anonymously upload quotes for scientific purchasing to promote pricing transparency and healthy competition from vendors</p>
+
+        <form id="upload-form" 
+              hx-post="https://srofwh0q51.execute-api.us-east-2.amazonaws.com/Prod/science-quote-dropbox-Step1-accept-PDF" 
+              hx-encoding="multipart/form-data"
+              hx-target="#message"
+              hx-swap="innerHTML"
+              hx-indicator="#progress-bar">
+            
+            <div class="upload-area" id="upload-area">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3498db" stroke-width="2" style="margin-bottom: 20px;">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="12" y1="18" x2="12" y2="12"></line>
+                    <line x1="9" y1="15" x2="15" y2="15"></line>
+                </svg>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" 
+                           id="pdf-file" 
+                           name="pdf-file" 
+                           class="file-input" 
+                           accept="application/pdf"
+                           required>
+                    <label for="pdf-file" class="file-input-label">Choose PDF Quote</label>
+                </div>
+                
+                <p style="margin-top: 20px; color: #7f8c8d;">or drag and drop your PDF here</p>
+            </div>
+
+            <div id="file-info" class="file-info">
+                <strong>Selected file:</strong> <span id="filename"></span><br>
+                <strong>Size:</strong> <span id="filesize"></span>
+            </div>
+
+            <div id="progress-bar" class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+
+            <button type="submit" id="upload-button" class="upload-button" disabled>
+                Upload Quote
+            </button>
+        </form>
+
+        <div id="message" class="message"></div>
+
+        <!-- FAQ Section using HTML5 details/summary -->
+        <details class="faq-section" style="margin-top: 30px;">
+            <summary style="color: #3498db; font-size: 1.1em; cursor: pointer; padding: 8px 0; outline: none; font-weight: 500;">Frequently Asked Questions - FAQ (click to expand)</summary>
+            <div style="margin-top: 15px; padding: 20px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e1e4e8;">
+                <strong>Q1: What types of files can I upload?</strong>
+                <p>A: Only PDF files are accepted for upload, with a maximum file size of 6MB.</p>
+                <br>
+                <strong>Q2: What happens to my PDF after upload?</strong>
+                <p>A: We first use AI technology to immediately detect if the PDF is a quote for scientific purchasing. If it isn't, it is deleted. If it is, we next use AI technology to redact all personal information from the PDF, delete the original, and then use AI to extract the scientific instrument, equipment, reagent, etc. pricing data from the redacted PDF.</p>
+                <br>
+                <strong>Q3: What happens to the extracted data?</strong>
+                <p>A: We publicly share it with the scientific community to promote pricing transparency and competition from vendors.</p>
+                <br>
+                <strong>Q4: Is my submission anonymous?</strong>
+                <p>A: Yes. We don't collect any identifying information from your visit (IP address, browser details, cookies, etc.), and all personal information within your PDF (from both customer and sales rep) is redacted by fully automated AI technology with full privacy protection and no human review.</p>
+                <br>
+                <strong>Q5: Who can see the uploaded quotes?</strong>
+                <p>A: No one, excepting under legal requirements. We delete the original PDF you upload, and the redacted version of your PDF is stored in encrypted form solely to allow us to investigate in response to allegations by the rightful owner that the quote was illegally uploaded and thus it and its extracted data must be deleted.</p>
+                <br>
+                <strong>Q6: Will you share the redacted PDFs with anyone outside of your organization, beyond in the unlikely event of a legal subpoena?</strong>
+                <p>A: We do not and will not. Only the <i>extracted data</i> on instrument and scientific reagent pricing is shared with the scientific community to promote pricing transparency and competition from vendors.</p>
+                <br>
+                <strong>Q7: Do you accept quotes from any country and any currency?</strong>
+                <p>A: Yes. Science is a global endeavor, and we gladly accept quotes from any country. We keep track of the currency of the quote, and put the extracted data in an global geographic context to in order to maximize its usefulness.</p>
+                <br>
+                <strong>Q8: Is this legal?</strong>
+                <p>A: Yes. If you believe your quote has been uploaded illegally, please contact us with either the filename (or the SHA-256 hash of the filename) or the SHA-265 hash of the original PDF content and we will investigate it & delete the redacted PDF and extracted data as necessary.</p>
+                <br>
+                <strong>Q9: My quote is marked confidential or otherwise says that it is prohibited to be shared?</strong>
+                <p>A: This language is often added to quotes. In most cases, it is simply boilerplate language and not legally binding unless your organization has a signed and active non-disclosure agreement (aka an "NDA") with the vendor. These are rare, and by uploading the quote you warrant that you have the right to disclose it to us.</p>
+                <br>
+                <strong>Q10: Actually these quotes fell off the back of a truck. They are marked "Top Secret" and contain classified information of national security importance. Can I still upload them?</strong>
+                <p>A: No. Our AIs screen for and immediately and securely destroy all uploaded quotes that have any legal prohibition on disclosure. Our goal is to promote pricing transparency and competition for scientific purchasing done on the public market, not to be a conduit for the illegal leaking of information.</p>
+                <br>
+
+            </div>
+        </details>
+
+    </div>
+
+    <!-- Footer -->
+    <footer style="text-align: center; margin-top: 0px; padding: 20px; color: #7f8c8d; font-size: 0.8em; line-height: 1.4;">
+        By uploading a PDF to this website, you warrant that you have the full and unencumbered right to disclose the information within to us.
+        <br>
+        (Excepting: any personally identifiable information, for which we will use AI to automatically redact without human review.)
+    </footer>
+
+    <script>
+        // File input handling
+        const fileInput = document.getElementById('pdf-file');
+        const uploadArea = document.getElementById('upload-area');
+        const fileInfo = document.getElementById('file-info');
+        const filename = document.getElementById('filename');
+        const filesize = document.getElementById('filesize');
+        const uploadButton = document.getElementById('upload-button');
+        const progressBar = document.getElementById('progress-bar');
+        const progressFill = document.getElementById('progress-fill');
+
+        // File selection
+        fileInput.addEventListener('change', function(e) {
+            handleFile(e.target.files[0]);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                handleFile(files[0]);
+            } else {
+                showMessage('Please drop a PDF file', 'error');
+            }
+        });
+
+        function handleFile(file) {
+            if (file && file.type === 'application/pdf') {
+                // Check file size limit (6MB = 6 * 1024 * 1024 bytes)
+                const maxSize = 6 * 1024 * 1024; // 6MB in bytes
+                if (file.size > maxSize) {
+                    resetForm();
+                    showMessage('File size exceeds 6MB limit. Please select a smaller PDF file.', 'error');
+                    return;
+                }
+                
+                filename.textContent = file.name;
+                filesize.textContent = formatFileSize(file.size);
+                fileInfo.classList.add('show');
+                uploadButton.classList.add('show');
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Upload Quote';
+            } else {
+                // Reset if invalid file type
+                resetForm();
+                showMessage('Please select a valid PDF file', 'error');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = 'message show ' + type;
+            
+            // Auto-clear success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    message.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // HTMX event handlers
+        document.body.addEventListener('htmx:xhr:progress', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                const percent = evt.detail.loaded / evt.detail.total * 100;
+                progressFill.style.width = percent + '%';
+                progressBar.classList.add('show');
+            }
+        });
+
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                // Disable the form during upload
+                uploadButton.disabled = true;
+                uploadButton.textContent = 'Uploading...';
+            }
+        });
+
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                // Always reset the form state
+                resetForm();
+                
+                if (evt.detail.successful) {
+                    // Show success message
+                    try {
+                        const response = JSON.parse(evt.detail.xhr.responseText);
+                        if (response.message) {
+                            showMessage(response.message, 'success');
+                        }
+                    } catch (e) {
+                        // Fallback to plain text response
+                        showMessage(evt.detail.xhr.responseText, 'success');
+                    }
+                    
+                    // Trigger event to update recent uploads
+                    document.body.dispatchEvent(new Event('upload-complete'));
+                } else {
+                    // Handle specific error responses
+                    const status = evt.detail.xhr.status;
+                    const responseText = evt.detail.xhr.responseText;
+                    
+                    if (status === 413) {
+                        // File too large - show the actual message from backend
+                        try {
+                            const response = JSON.parse(responseText);
+                            if (response.error) {
+                                showMessage(response.error, 'error');
+                            } else {
+                                showMessage('File size exceeds 6MB limit', 'error');
+                            }
+                        } catch (e) {
+                            showMessage('File size exceeds 6MB limit', 'error');
+                        }
+                    } else if (status === 429) {
+                        // Rate limit exceeded - show the actual message from backend
+                        showMessage(responseText, 'error');
+                    } else if (status >= 400 && status < 500) {
+                        // Client errors - try to parse JSON response for specific message
+                        try {
+                            const response = JSON.parse(responseText);
+                            if (response.error) {
+                                showMessage(response.error, 'error');
+                            } else {
+                                showMessage(responseText, 'error');
+                            }
+                        } catch (e) {
+                            showMessage(responseText || 'Upload failed. Please try again later.', 'error');
+                        }
+                    } else {
+                        // Server errors - show generic message
+                        showMessage('Upload failed. Please try again later.', 'error');
+                    }
+                }
+            }
+        });
+
+        // Show error messages from failed requests
+        document.body.addEventListener('htmx:responseError', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                resetForm();
+                // This will be handled by htmx:afterRequest for specific status codes
+                // Only show generic error for network/connection issues
+                if (!evt.detail.xhr || evt.detail.xhr.status === 0) {
+                    showMessage('Network error. Please check your connection and try again.', 'error');
+                }
+            }
+        });
+
+        function resetForm() {
+            // Reset file input
+            fileInput.value = '';
+            
+            // Reset UI elements
+            fileInfo.classList.remove('show');
+            uploadButton.classList.remove('show');
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Upload Quote';
+            
+            // Reset progress bar
+            progressBar.classList.remove('show');
+            progressFill.style.width = '0%';
+            
+            // Clear any drag-over states
+            uploadArea.classList.remove('dragover');
+        }
+
+    </script>
+</body>
+</html>

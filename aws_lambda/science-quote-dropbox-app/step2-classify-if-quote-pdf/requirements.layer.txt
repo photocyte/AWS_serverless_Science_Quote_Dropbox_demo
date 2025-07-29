@@ -1,0 +1,7 @@
+boto3==1.39.15
+httpx==0.28.1
+pydantic==2.11.7
+cryptography==45.0.5
+snowflake-connector-python==3.16.0
+sqlalchemy==2.0.41
+snowflake-sqlalchemy==1.7.6

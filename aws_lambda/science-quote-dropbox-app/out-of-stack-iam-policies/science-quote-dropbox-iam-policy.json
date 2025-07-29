@@ -1,0 +1,29 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:PassRole",
+                "iam:TagRole",
+                "iam:GetRole",
+                "iam:ListRoles"
+            ],
+            "Resource": "arn:aws:iam::*:role/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:DeleteLogGroup",
+                "logs:DescribeLogGroups",
+                "logs:PutRetentionPolicy",
+                "logs:DeleteRetentionPolicy"
+            ],
+            "Resource": "arn:aws:logs:us-east-2:*:log-group:*"
+        }
+    ]
+}

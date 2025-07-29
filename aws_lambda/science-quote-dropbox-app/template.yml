@@ -1,0 +1,286 @@
+# This AWS SAM template has been generated from your function's configuration. If
+# your function has one or more triggers, note that the AWS resources associated
+# with these triggers aren't fully specified in this template and include
+# placeholder values. Open this template in AWS Infrastructure Composer or your
+# favorite IDE and modify it to specify a serverless application with other AWS
+# resources.
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Science Quote Dropbox Application
+
+Parameters:
+  StaticWebsiteBucketName:
+    Type: String
+    Description: 'Name of the pre-existing S3 bucket for static website hosting (must be created and configured manually)'
+
+# =====================================================================
+# SHARED / APPLICATION-LEVEL RESOURCES
+# =====================================================================
+Resources:
+  ScienceQuoteDropboxApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      BinaryMediaTypes:
+        - multipart/form-data
+        - application/pdf
+## Note: there is a hard limit of the upload payload of 6MB, per https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html#:~:text=6%20MB%20each%20for%20request
+
+  ScienceQuoteDropboxProcessedPDFStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: science-quote-dropbox-processed-files
+
+  # The static website bucket must be created manually due to Block Public Access restrictions.
+  # ScienceQuoteDropboxStaticWebsite:
+  #   Type: AWS::S3::Bucket
+  #   Properties:
+  #     BucketName: !Ref StaticWebsiteBucketName
+  #     WebsiteConfiguration:
+  #       IndexDocument: index.html
+  #       ErrorDocument: error.html
+  #   # AccessControl: PublicRead  # Omitted due to ObjectOwnership: BucketOwnerEnforced
+  #   # Public access is managed by the bucket policy below (see ScienceQuoteDropboxStaticWebsitePolicy)
+
+  ScienceQuoteDropboxStaticWebsitePolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StaticWebsiteBucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${StaticWebsiteBucketName}/*'
+
+  Step1RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: step1-rate-limit
+      AttributeDefinitions:
+        - AttributeName: client_id
+          AttributeType: S
+        - AttributeName: window
+          AttributeType: S
+      KeySchema:
+        - AttributeName: client_id
+          KeyType: HASH
+        - AttributeName: window
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ProcessedPDFsTable - Replaced by Snowflake database
+  # ProcessedPDFsTable:
+  #   Type: AWS::DynamoDB::Table
+  #   Properties:
+  #     TableName: processed-pdfs
+  #     AttributeDefinitions:
+  #       - AttributeName: pdf_hash
+  #         AttributeType: S
+  #     KeySchema:
+  #       - AttributeName: pdf_hash
+  #         KeyType: HASH
+  #     BillingMode: PAY_PER_REQUEST
+
+# =====================================================================
+# LAYERS (One per function)
+# =====================================================================
+  ScienceQuoteDropboxStep1Layer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: science-quote-dropbox-step1-layer
+      Description: Dependencies for Step 1 PDF upload processing
+      ContentUri: ./step1-accept-pdf/lambda-layer
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Delete
+      LicenseInfo: 'MIT'
+
+  ScienceQuoteDropboxStep2Layer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: science-quote-dropbox-step2-layer
+      Description: Dependencies for Step 2 PDF quote classification
+      ContentUri: ./step2-classify-if-quote-pdf/lambda-layer
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Delete
+      LicenseInfo: 'MIT'
+
+# =====================================================================
+# FUNCTION: Step 1 - Accept PDF
+# =====================================================================
+  ScienceQuoteDropboxStep1AcceptPDF:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: science-quote-dropbox-Step1-accept-PDF
+      CodeUri: ./step1-accept-pdf/src
+      Description: 'PDF uploading for downstream AI redaction and parsing'
+      MemorySize: 256
+      Timeout: 300
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 512
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 21600
+        MaximumRetryAttempts: 2
+      PackageType: Zip
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+              Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/science-quote-dropbox-Step1-accept-PDF:*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource:
+                - arn:aws:s3:::science-quote-dropbox-raw-uploads/*
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:DescribeTable
+              Resource: !GetAtt Step1RateLimitTable.Arn
+      Layers:
+        - !Ref ScienceQuoteDropboxStep1Layer
+      RecursiveLoop: Terminate
+      SnapStart:
+        ApplyOn: None
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ScienceQuoteDropboxApi
+            Path: /science-quote-dropbox-Step1-accept-PDF
+            Method: ANY
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+
+  # CloudWatch Log Group for Step 1 Lambda
+  ScienceQuoteDropboxStep1LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ScienceQuoteDropboxStep1AcceptPDF}"
+      RetentionInDays: 14
+
+# =====================================================================
+# FUNCTION: Step 2 - Classify if a Quote PDF using Gemini Vision API
+# =====================================================================
+  ScienceQuoteDropboxStep2ClassifyIfQuotePDF:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: science-quote-dropbox-Step2-classify-if-quote-PDF
+      CodeUri: ./step2-classify-if-quote-pdf/src
+      Description: 'Classify if a Quote PDF using Gemini Vision API'
+      MemorySize: 256
+      Timeout: 300
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - x86_64
+      EphemeralStorage:
+        Size: 512
+      Environment:
+        Variables:
+          SOURCE_BUCKET: science-quote-dropbox-raw-uploads
+          PROCESSED_BUCKET: science-quote-dropbox-processed-files
+          SNOWFLAKE_SECRET_NAME: snowflake-credentials
+      PackageType: Zip
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+              Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource:
+                - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/science-quote-dropbox-Step2-classify-if-quote-PDF:*'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource:
+                - arn:aws:s3:::science-quote-dropbox-raw-uploads/*
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource:
+                - arn:aws:s3:::science-quote-dropbox-processed-files/*
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:snowflake-credentials-*'
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/science-quote-dropbox/gemini-api-key'
+      Layers:
+        - !Ref ScienceQuoteDropboxStep2Layer
+      RecursiveLoop: Terminate
+      SnapStart:
+        ApplyOn: None
+
+      RuntimeManagementConfig:
+        UpdateRuntimeOn: Auto
+
+  # CloudWatch Log Group for Step 2 Lambda
+  ScienceQuoteDropboxStep2LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ScienceQuoteDropboxStep2ClassifyIfQuotePDF}"
+      RetentionInDays: 14
+
+  # Lambda permission for S3 to invoke Step 2 function
+  ScienceQuoteDropboxStep2LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ScienceQuoteDropboxStep2ClassifyIfQuotePDF
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::science-quote-dropbox-raw-uploads"
+
+  # S3 Bucket for raw PDF uploads (Step 1 output, Step 2 input)
+  ScienceQuoteDropboxPDFStore:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: science-quote-dropbox-raw-uploads
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: uploads/
+                  - Name: suffix
+                    Value: .pdf
+            Function: !GetAtt ScienceQuoteDropboxStep2ClassifyIfQuotePDF.Arn
+
+Outputs:
+  ApiUrlStep1:
+    Description: "API Gateway endpoint URL for Step 1 (Accept PDF)"
+    Value: !Sub "https://${ScienceQuoteDropboxApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/science-quote-dropbox-Step1-accept-PDF"

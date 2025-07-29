@@ -1,0 +1,29 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GeminiApiKeyManagement",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:PutParameter",
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:DeleteParameter",
+                "ssm:DescribeParameters",
+                "ssm:GetParameterHistory"
+            ],
+            "Resource": [
+                "arn:aws:ssm:us-east-2:*:parameter/science-quote-dropbox/gemini-api-key",
+                "arn:aws:ssm:us-east-2:*:parameter/science-quote-dropbox/gemini-api-key/*"
+            ]
+        },
+        {
+            "Sid": "ListScienceQuoteDropboxParameters",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:DescribeParameters"
+            ],
+            "Resource": "*"
+        }
+    ]
+} 
